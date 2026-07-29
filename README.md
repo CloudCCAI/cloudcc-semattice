@@ -1,8 +1,8 @@
-# Semattice Customization Expert Universal
+# CloudCC Semattice（语义格）
 
-当前版本：[`0.1.1`](VERSION)
+当前版本：[`1.0.0`](VERSION)
 
-`semattice-customization-expert-universal` 是通过统一 HTTPS Capability API 安全操作 CloudCC Semattice（语义格）的 Codex 技能。它帮助 AI 发现平台能力，理解资源模型，并在租户、元数据、记录、用量、授权、组织和共享等领域执行受控操作。
+`cloudcc-semattice` 是通过统一 HTTPS Capability API 安全操作 CloudCC Semattice（语义格）的 Codex 技能。它帮助 AI 发现平台能力，理解资源模型，并在租户、元数据、记录、用量、授权、组织和共享等领域执行受控操作。
 
 ## 能力范围
 
@@ -28,13 +28,13 @@
 
 ```bash
 git clone \
-  --branch v0.1.1 \
+  --branch v1.0.0 \
   --depth 1 \
-  https://github.com/CloudCCAI/semattice-customization-expert-universal.git \
-  ~/.codex/skills/semattice-customization-expert-universal
+  https://github.com/CloudCCAI/cloudcc-semattice.git \
+  ~/.codex/skills/cloudcc-semattice
 ```
 
-安装后在 Codex 中使用 `$semattice-customization-expert-universal` 调用技能。
+安装后在 Codex 中使用 `$cloudcc-semattice` 调用技能。
 
 ## 快速开始
 
@@ -76,93 +76,12 @@ python3 scripts/semattice_api.py \
 根目录 `VERSION` 是版本号的唯一事实源，每个发布版本必须具有完全一致的 Git 标签 `v<version>`。升级到指定版本：
 
 ```bash
-cd ~/.codex/skills/semattice-customization-expert-universal
+cd ~/.codex/skills/cloudcc-semattice
 git fetch --tags
-git checkout v0.1.1
+git checkout v1.0.0
 ```
 
-发布新版本时，先更新技能内容和 `VERSION`，运行官方技能校验，再提交并创建对应版本标签。不要移动或覆盖已经发布的标签。
-
-## 维护与发布流程
-
-### 双目录边界
-
-- **项目内开发副本**：`<semattice-project>/skill/semattice-customization-expert-universal`，是技能内容的开发源，不初始化 `.git`。
-- **独立发布仓库**：项目外单独克隆的 `semattice-customization-expert-universal`，持有 `.git`，远程固定为 `https://github.com/CloudCCAI/semattice-customization-expert-universal`。
-- 根目录 `VERSION` 是版本号的唯一事实源。发布仓库只承载从开发副本验证并同步后的发布内容，不在两个目录中并行编辑。
-
-### 1. 准备版本
-
-1. 在项目内开发副本修改技能内容。
-2. 按 SemVer 更新 `VERSION`；同步更新 README 中当前版本、安装标签和升级示例。
-3. 确认目标 `v<version>` 标签从未发布。已经发布的标签不可移动、覆盖或删除后重建。
-
-### 2. 同步发布仓库
-
-先确认发布仓库工作树干净、main 可快进到远程，再预览同步结果：
-
-```bash
-skill_source_dir='/absolute/path/to/cloudcc-semattice/skill/semattice-customization-expert-universal'
-release_repo_dir='/absolute/path/to/semattice-customization-expert-universal'
-
-git -C "$release_repo_dir" fetch origin --prune --tags
-git -C "$release_repo_dir" switch main
-git -C "$release_repo_dir" merge --ff-only origin/main
-git -C "$release_repo_dir" status --short --branch
-
-rsync -a --delete --exclude='.git/' --dry-run \
-  "$skill_source_dir/" "$release_repo_dir/"
-```
-
-人工核对 dry-run 只涉及技能文件后，再执行相同同步并验证两目录一致。`--delete` 用于清除已从开发副本移除的旧文件，因此禁止省略 dry-run，也禁止交换源目录和目标目录：
-
-```bash
-rsync -a --delete --exclude='.git/' \
-  "$skill_source_dir/" "$release_repo_dir/"
-
-diff -qr --exclude='.git' "$skill_source_dir" "$release_repo_dir"
-```
-
-### 3. 发布前校验
-
-在独立发布仓库执行：
-
-```bash
-release_version=$(tr -d '\n' < "$release_repo_dir/VERSION")
-
-python3 /path/to/skill-creator/scripts/quick_validate.py "$release_repo_dir"
-python3 "$release_repo_dir/scripts/semattice_api.py" --help >/dev/null
-git -C "$release_repo_dir" diff --check
-git -C "$release_repo_dir" diff --stat
-git -C "$release_repo_dir" diff
-```
-
-同时确认：
-
-- `VERSION` 是合法的 `MAJOR.MINOR.PATCH`，README 引用同一版本。
-- `agents/openai.yaml` 是合法 YAML，默认提示仍使用正确的 `$skill` 名称。
-- 辅助脚本语法与无 Token `--dry-run` 通过。
-- 仓库不包含 Token、私钥、临时文件、`__pycache__` 或 `.pyc`。
-
-### 4. 提交、打标签并推送
-
-```bash
-git -C "$release_repo_dir" add README.md SKILL.md VERSION agents references scripts
-git -C "$release_repo_dir" commit -m "release: semattice customization skill v${release_version}"
-git -C "$release_repo_dir" tag -a "v${release_version}" \
-  -m "semattice-customization-expert-universal v${release_version}"
-git -C "$release_repo_dir" push --atomic -u origin main "v${release_version}"
-```
-
-只允许普通快进和新标签推送。禁止 force push，禁止复用或移动历史版本标签。原子 push 保证 main 与版本标签同时成功或同时失败。
-
-### 5. 发布后验证
-
-1. 确认本地 HEAD、`origin/main` 和 `v<version>^{}` 指向同一提交。
-2. 确认远程 HEAD 指向 main，仓库页面返回 HTTP 200。
-3. 读取远程 raw `VERSION`，确认等于本次版本。
-4. 读取远程 README，确认标题、安装标签和升级示例正确。
-5. 确认本地发布仓库工作树 clean，再记录提交 SHA、标签和验证结果。
+`1.0.0` 将技能 ID 和调用名统一为 `cloudcc-semattice`。从 `0.x` 升级时，请安装到新目录并将调用名改为 `$cloudcc-semattice`；确认新技能可用后再移除旧目录。
 
 ## 目录结构
 
