@@ -19,7 +19,7 @@
 
 当前主程序在数据库模式下注册 51 项公开 Capability API。本目录来自注册表定义和输入 Schema，用于选择能力和准备输入；调用前仍应通过 `system.capability.list` 核对线上版本。
 
-表格中的输入只列能力 `input` 对象。每次 HTTP 请求还必须包含顶层 `request_id`，写操作通常应包含顶层 `idempotency_key`。`高/异步/审批` 表示能力契约要求独立审批；输入含 `approval_id` 时，该标识还必须存在于可信令牌的 `approvals` 声明中。
+表格中的输入只列能力 `input` 对象。每次 HTTP 请求还必须包含顶层 `request_id`，写操作通常应包含顶层 `idempotency_key`。`高/异步/审批` 表示能力契约要求审批确认。`metadata.version.publish` 是唯一的手动确认例外；其他输入含 `approval_id` 的能力仍要求该标识存在于可信令牌的 `approvals` 声明中。
 
 ## 系统能力（1）
 
@@ -47,7 +47,7 @@
 | `metadata.object.upsert` | v1 | 在草稿版本创建或更新对象定义 | `metadata.definition.write` | 中/同步 | 必填 `metadata_version_id`、`api_name`、`label`；可选 `object_id`、`description`、`semantic` |
 | `metadata.field.upsert` | v1 | 在草稿版本创建或更新字段定义 | `metadata.definition.write` | 中/同步 | 必填 `metadata_version_id`、`object_id`、`api_name`、`label`、`data_type`；其他字段控制属性均可选 |
 | `metadata.relation.upsert` | v1 | 在草稿版本创建或更新对象关系 | `metadata.definition.write` | 中/同步 | 必填 `metadata_version_id`、`api_name`、`source_object_id`、`target_object_id`、`relation_type`、`delete_behavior`；可选 `relation_id`、`description`、`semantic` |
-| `metadata.version.publish` | v1 | 经独立审批直接发布不可变元数据快照 | `metadata.publish` | 高/异步/审批 | 必填 `metadata_version_id`、`approval_id` |
+| `metadata.version.publish` | v1 | 使用显式手动确认发布首个不可变元数据快照 | `metadata.publish` | 高/异步/审批 | 必填 `metadata_version_id`、非空手动 `approval_id`；发布整版定义并持久审计 |
 | `metadata.version.get` | v1 | 获取一个版本及其有序对象、字段和关系定义 | `metadata.read` | 低/同步 | 必填 `metadata_version_id` |
 | `metadata.changeset.validate` | v1 | 校验候选版本、冻结配额快照并生成演进计划 | `metadata.changeset.write` | 中/同步 | 必填 `candidate_metadata_version_id` |
 | `metadata.changeset.simulate` | v1 | 查看冻结的影响模拟和执行计划 | `metadata.changeset.read` | 低/同步 | 必填 `changeset_id` |
@@ -79,6 +79,15 @@
 | `runtime.record.update` | v1 | 使用合并补丁和乐观锁更新记录 | `runtime.record.update` | 中/同步 | 必填 `object_api_name`、`record_id`、`expected_revision`、`patch` |
 | `runtime.record.delete` | v1 | 使用乐观锁软删除记录 | `runtime.record.delete` | 中/同步 | 必填 `object_api_name`、`record_id`、`expected_revision` |
 | `runtime.record.query` | v1 | 通过有界类型化索引 DSL 查询活动记录 | `runtime.record.read` | 低/同步 | 必填 `object_api_name`；可选 `filters`、`after`、`limit` |
+
+## 身份投影能力（4）
+
+| 能力 ID | 版本 | 用途 | scope | 风险/执行 | `input` |
+|---|---:|---|---|---|---|
+| `identity.principal.sync` | v1 | 将当前已验证 AgentCiCi Principal 投影到租户 | `identity.principal.sync` | 中/同步 | 可选 `display_name`、`public_id`；主体、租户、owner 和 client 只取可信令牌 |
+| `identity.principal.list` | v1 | 列出当前租户受治理的 Principal 投影 | `authorization.manage` | 低/同步 | 可选 `principal_type`、`status` |
+| `identity.principal.set-status` | v1 | 暂停、恢复或禁用目标 Principal 投影 | `authorization.manage` | 高/异步/审批 | 必填 `principal_id`、`status`、`reason`、`approval_id` |
+| `identity.principal.set-organization-membership` | v1 | 建立、更新或结束目标 Principal 的组织成员关系 | `authorization.manage` | 高/异步/审批 | 必填 `principal_id`、`organization_id`、`active`、`primary`、`approval_id` |
 
 ## 角色、权限和对象策略能力（8）
 
@@ -135,5 +144,6 @@
 | 元数据 | 16 |
 | 用量 | 3 |
 | 记录 | 5 |
+| 身份投影 | 4 |
 | 授权、组织和共享 | 21 |
-| 合计 | 51 |
+| 合计 | 55 |
